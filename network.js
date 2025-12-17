@@ -1,14 +1,24 @@
-// 网络管理类
+// 网络管理类 - 支持WebSocket和Photon Cloud两种连接方式
 class NetworkManager {
     constructor() {
         this.socket = null;
+        this.client = null;
         this.isConnected = false;
         this.isConnecting = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         this.reconnectDelay = 1000; // 初始重连延迟1秒
+        
+        // 连接类型：'websocket' 或 'photon'
+        this.connectionType = 'websocket'; // 默认使用WebSocket
+        
         // 动态获取服务器地址，支持局域网连接
         this.serverUrl = this.getServerUrl();
+        
+        // Photon Cloud配置
+        this.photonAppId = '84e83fae-288e-4cf8-87e8-da69c2639380';
+        this.photonAppVersion = '1.0';
+        
         this.game = null;
         this.playerId = null;
         this.callbacks = {
@@ -19,7 +29,8 @@ class NetworkManager {
             onPlayerMove: null,
             onGameStart: null,
             onGameEnd: null,
-            onError: null
+            onError: null,
+            onPlayerStatusUpdate: null
         };
     }
     
@@ -40,6 +51,16 @@ class NetworkManager {
         return 'ws://localhost:8080';
     }
     
+    // 设置连接类型
+    setConnectionType(type) {
+        if (['websocket', 'photon'].includes(type)) {
+            this.connectionType = type;
+            console.log('连接类型设置为:', type);
+        } else {
+            console.warn('不支持的连接类型:', type);
+        }
+    }
+    
     // 连接服务器
     connect(serverUrl = this.serverUrl) {
         if (this.isConnecting || this.isConnected) {
@@ -49,14 +70,60 @@ class NetworkManager {
         
         this.isConnecting = true;
         this.updateConnectionStatus('connecting');
-        console.log('开始连接到服务器:', serverUrl);
         
+        if (this.connectionType === 'photon') {
+            console.log('开始连接到Photon Cloud服务器');
+            this.connectToPhoton();
+        } else {
+            console.log('开始连接到WebSocket服务器:', serverUrl);
+            this.connectToWebSocket(serverUrl);
+        }
+    }
+    
+    // WebSocket连接
+    connectToWebSocket(serverUrl) {
         try {
             this.socket = new WebSocket(serverUrl);
             console.log('WebSocket对象创建成功');
             this.setupSocketEvents();
         } catch (error) {
             console.error('创建WebSocket连接失败:', error);
+            this.isConnecting = false;
+            this.handleError(error);
+        }
+    }
+    
+    // Photon Cloud连接
+    connectToPhoton() {
+        // 检查是否已加载Photon SDK
+        if (typeof loadBalancingClient === 'undefined' && typeof Photon === 'undefined') {
+            console.error('Photon SDK未加载，无法使用Photon Cloud连接');
+            this.isConnecting = false;
+            this.handleError('Photon SDK未加载');
+            return;
+        }
+        
+        try {
+            // 创建LoadBalancing客户端
+            const LoadBalancingClient = typeof loadBalancingClient !== 'undefined' ? loadBalancingClient : 
+                                      (typeof Photon !== 'undefined' ? Photon.LoadBalancing.LoadBalancingClient : null);
+            
+            if (!LoadBalancingClient) {
+                throw new Error('无法找到Photon LoadBalancingClient');
+            }
+            
+            this.client = new LoadBalancingClient({
+                appId: this.photonAppId,
+                appVersion: this.photonAppVersion,
+                useWSS: true
+            });
+            
+            console.log('Photon客户端创建成功');
+            this.setupPhotonEvents();
+            this.client.connect();
+            
+        } catch (error) {
+            console.error('初始化Photon客户端失败:', error);
             this.isConnecting = false;
             this.handleError(error);
         }
@@ -108,6 +175,98 @@ class NetworkManager {
             this.isConnecting = false;
             this.handleError(error);
         };
+    }
+    
+    // 设置Photon事件监听
+    setupPhotonEvents() {
+        if (!this.client) return;
+        
+        // 连接状态变化
+        this.client.on('connectionStateChange', (state) => {
+            console.log('Photon连接状态变化:', state);
+            
+            switch (state) {
+                case 'Joined':
+                    this.isConnected = true;
+                    this.isConnecting = false;
+                    this.updateConnectionStatus('online');
+                    
+                    // 设置玩家ID
+                    this.playerId = this.client.userId;
+                    document.getElementById('player-id').textContent = this.playerId;
+                    
+                    if (this.callbacks.onConnect) {
+                        this.callbacks.onConnect();
+                    }
+                    break;
+                    
+                case 'Disconnected':
+                    this.isConnected = false;
+                    this.isConnecting = false;
+                    this.updateConnectionStatus('offline');
+                    
+                    if (this.callbacks.onDisconnect) {
+                        this.callbacks.onDisconnect();
+                    }
+                    break;
+                    
+                case 'Connecting':
+                    this.isConnecting = true;
+                    this.updateConnectionStatus('connecting');
+                    break;
+            }
+        });
+        
+        // 玩家加入房间
+        this.client.on('actorJoined', (actor) => {
+            console.log('玩家加入房间:', actor.actorNr);
+            
+            if (this.game && this.callbacks.onPlayerJoined) {
+                // 创建玩家对象
+                const playerData = {
+                    id: actor.actorNr.toString(),
+                    x: Math.random() * 700 + 50,
+                    y: Math.random() * 500 + 50,
+                    color: this.generateColor(),
+                    isLocal: actor.actorNr === this.client.actorNr
+                };
+                
+                const gamePlayer = this.game.addPlayer(playerData);
+                
+                if (playerData.isLocal) {
+                    this.game.localPlayer = gamePlayer;
+                }
+                
+                this.callbacks.onPlayerJoined(gamePlayer);
+                showNotification(`玩家 ${actor.actorNr} 加入了游戏`, 'info');
+            }
+            
+            this.updatePlayerCount();
+        });
+        
+        // 玩家离开房间
+        this.client.on('actorLeft', (actor) => {
+            console.log('玩家离开房间:', actor.actorNr);
+            
+            if (this.game && this.callbacks.onPlayerLeft) {
+                this.game.removePlayer(actor.actorNr.toString());
+                this.callbacks.onPlayerLeft(actor.actorNr.toString());
+                showNotification(`玩家 ${actor.actorNr} 离开了游戏`, 'info');
+            }
+            
+            this.updatePlayerCount();
+        });
+        
+        // 接收自定义事件
+        this.client.on('customEvent', (eventData) => {
+            this.handlePhotonEvent(eventData.eventCode, eventData.data, eventData.sender);
+        });
+        
+        // 错误处理
+        this.client.on('error', (error) => {
+            console.error('Photon错误:', error);
+            this.handleError(error);
+        });
     }
     
     // 处理服务器消息
@@ -282,22 +441,83 @@ class NetworkManager {
     
     // 发送玩家移动数据
     sendPlayerMove(x, y, vx, vy) {
-        return this.sendMessage('playerMove', { x, y, vx, vy });
+        if (this.connectionType === 'photon' && this.client && this.isConnected) {
+            // Photon方式发送
+            this.client.sendEvent(1, {
+                x: x,
+                y: y,
+                vx: vx,
+                vy: vy
+            });
+            return true;
+        } else {
+            // WebSocket方式发送
+            return this.sendMessage('playerMove', { x, y, vx, vy });
+        }
     }
     
     // 发送波打法事件
     sendWaveAttack(x, y) {
-        return this.sendMessage('waveAttack', { x, y });
+        if (this.connectionType === 'photon' && this.client && this.isConnected) {
+            // Photon方式发送
+            this.client.sendEvent(2, {
+                x: x,
+                y: y,
+                playerId: this.playerId
+            });
+            return true;
+        } else {
+            // WebSocket方式发送
+            return this.sendMessage('waveAttack', { x, y });
+        }
     }
     
     // 发送玩家状态更新
     sendPlayerStatus(health, resistance, mana) {
-        return this.sendMessage('playerStatus', { health, resistance, mana });
+        if (this.connectionType === 'photon' && this.client && this.isConnected) {
+            // Photon方式发送
+            this.client.sendEvent(5, {
+                health: health,
+                resistance: resistance,
+                mana: mana
+            });
+            return true;
+        } else {
+            // WebSocket方式发送
+            return this.sendMessage('playerStatus', { health, resistance, mana });
+        }
+    }
+    
+    // 发送开始游戏请求
+    sendGameStart() {
+        if (this.connectionType === 'photon' && this.client && this.isConnected) {
+            // Photon方式发送
+            this.client.sendEvent(3, {});
+            return true;
+        } else {
+            // WebSocket方式发送
+            return this.sendMessage('gameStart', {});
+        }
+    }
+    
+    // 发送游戏结束事件
+    sendGameEnd(winner) {
+        if (this.connectionType === 'photon' && this.client && this.isConnected) {
+            // Photon方式发送
+            this.client.sendEvent(4, { winner: winner });
+            return true;
+        } else {
+            // WebSocket方式发送
+            return this.sendMessage('gameEnd', { winner: winner });
+        }
     }
     
     // 断开连接
     disconnect() {
-        if (this.socket) {
+        if (this.connectionType === 'photon' && this.client) {
+            this.client.disconnect();
+            this.client = null;
+        } else if (this.socket) {
             this.socket.close();
             this.socket = null;
         }
@@ -305,6 +525,65 @@ class NetworkManager {
         this.isConnected = false;
         this.isConnecting = false;
         this.updateConnectionStatus('offline');
+        console.log('已断开连接');
+    }
+    
+    // 处理Photon自定义事件
+    handlePhotonEvent(eventCode, content, actorNr) {
+        switch (eventCode) {
+            case 1: // 玩家移动事件
+                if (this.game && content) {
+                    const { x, y, vx, vy } = content;
+                    this.game.updatePlayerPosition(actorNr.toString(), x, y, vx, vy);
+                    
+                    if (this.callbacks.onPlayerMove) {
+                        this.callbacks.onPlayerMove(actorNr.toString(), x, y, vx, vy);
+                    }
+                }
+                break;
+                
+            case 2: // 波打法事件
+                if (this.game && content) {
+                    const { x, y, playerId } = content;
+                    this.game.createWave(x, y, playerId);
+                }
+                break;
+                
+            case 3: // 游戏开始事件
+                if (this.game) {
+                    this.game.setGameState('playing');
+                    
+                    if (this.callbacks.onGameStart) {
+                        this.callbacks.onGameStart();
+                    }
+                    
+                    showNotification('游戏开始！', 'success');
+                }
+                break;
+                
+            case 4: // 游戏结束事件
+                if (this.game) {
+                    this.game.setGameState('ended');
+                    
+                    if (this.callbacks.onGameEnd) {
+                        this.callbacks.onGameEnd(content.winner);
+                    }
+                    
+                    showNotification(`游戏结束！获胜者: ${content.winner}`, 'info');
+                }
+                break;
+                
+            case 5: // 玩家状态更新事件
+                if (this.game && content) {
+                    const { health, resistance, mana } = content;
+                    this.game.updatePlayerStatus(actorNr.toString(), health, resistance, mana);
+                    
+                    if (this.callbacks.onPlayerStatusUpdate) {
+                        this.callbacks.onPlayerStatusUpdate(actorNr.toString(), health, resistance, mana);
+                    }
+                }
+                break;
+        }
     }
     
     // 尝试重连

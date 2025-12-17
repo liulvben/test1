@@ -100,6 +100,18 @@
         <footer class="game-footer">
             <p>使用WASD键控制角色移动</p>
         </footer>
+        
+        <!-- 移动端控制界面 -->
+        <div id="mobile-controls" class="mobile-controls hidden">
+            <div class="joystick-container">
+                <div id="joystick" class="joystick">
+                    <div id="joystick-handle" class="joystick-handle"></div>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button id="mobile-wave-btn" class="action-btn wave-btn">波打法</button>
+            </div>
+        </div>
     </div>
     
     <div id="notification" class="notification hidden"></div>
@@ -173,8 +185,7 @@
     
     <script src="game.js"></script>
     <script src="network.js"></script>
-    <script src="photon-network.js"></script>
-    <!-- <script src="mobile-controls.js"></script> -->
+    <script src="mobile-controls.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

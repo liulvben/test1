@@ -6,8 +6,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 将游戏实例设置为全局变量，以便其他脚本可以访问
     window.game = game;
     
-    // 初始化网络管理器 - 使用Photon Cloud
-    const networkManager = new PhotonNetworkManager();
+    // 初始化网络管理器 - 支持WebSocket和Photon Cloud两种连接方式
+    const networkManager = new NetworkManager();
+    
+    // 设置连接类型为Photon Cloud（默认是websocket）
+    networkManager.setConnectionType('photon');
     
     networkManager.setGame(game);
     game.setNetworkManager(networkManager);

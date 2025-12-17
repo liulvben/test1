@@ -300,6 +300,79 @@ body {
 
 
 
+/* 移动端控制样式 */
+.mobile-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 20px;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.mobile-controls.hidden {
+    display: none;
+}
+
+.joystick-container {
+    pointer-events: auto;
+}
+
+.joystick {
+    width: 100px;
+    height: 100px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    position: relative;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.joystick-handle {
+    width: 40px;
+    height: 40px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s ease;
+}
+
+.action-buttons {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.action-btn {
+    padding: 15px 20px;
+    background-color: rgba(74, 158, 255, 0.8);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.action-btn:active {
+    background-color: rgba(74, 158, 255, 1);
+}
+
+.wave-btn {
+    background-color: rgba(255, 87, 34, 0.8);
+}
+
+.wave-btn:active {
+    background-color: rgba(255, 87, 34, 1);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .game-container {
@@ -331,7 +404,9 @@ body {
         min-width: 45%;
     }
     
-
+    .mobile-controls {
+        display: flex;
+    }
     
     canvas {
         width: 100%;

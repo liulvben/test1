@@ -4,7 +4,9 @@
 
 ## 功能特点
 
+- **双模式网络支持**: 支持WebSocket本地服务器和Photon Cloud远程联机两种模式
 - **实时联网对战**: 使用WebSocket技术实现玩家之间的实时对战
+- **Photon Cloud远程联机**: 无需配置服务器，直接使用Photon云服务进行全球联机
 - **远程联机支持**: 支持局域网和互联网远程联机对战
 - **跨平台支持**: 支持PC端和移动端（安卓手机）联机对战
 - **移动端控制**: 移动设备上提供虚拟摇杆和触屏控制
@@ -14,14 +16,17 @@
 - **视觉效果**: 蓝色圆形角色设计，带有移动轨迹效果
 - **匹配系统**: 自动匹配玩家进行对战
 - **游戏状态同步**: 实时同步所有玩家的位置和状态
+- **GitHub Pages部署**: 支持通过GitHub Pages进行静态部署
 
 ## 技术栈
 
 - **前端**: HTML5, CSS3, JavaScript (ES6+)
 - **图形渲染**: HTML5 Canvas
-- **网络通信**: WebSocket
+- **网络通信**: WebSocket, Photon Cloud
 - **后端**: Node.js, ws库
 - **移动端支持**: 响应式设计，触摸事件处理
+- **云服务**: Photon Cloud (实时游戏服务)
+- **部署**: GitHub Pages, 静态文件托管
 
 ## 安装和运行
 
@@ -93,15 +98,24 @@ npm run dev
 
 ```
 moba-game/
-├── index.html              # 主HTML文件
-├── styles.css              # 样式文件
+├── index.html              # 主HTML文件（支持Photon Cloud远程联机）
+├── index-github.html       # GitHub Pages部署入口页面
+├── styles.css              # 样式文件（包含移动端控制样式）
 ├── game.js                 # 游戏核心逻辑
-├── network.js              # 网络通信模块
-├── mobile-controls.js      # 移动端控制模块
+├── network.js              # 网络通信模块（支持WebSocket和Photon Cloud）
+├── mobile-controls.js     # 移动端控制模块
 ├── main.js                 # 主应用程序入口
 ├── server.js               # Node.js服务器
 ├── start-server.bat        # Windows服务器启动脚本
 ├── package.json            # 项目配置
+├── _config.yml             # GitHub Pages配置文件
+├── .nojekyll               # GitHub Pages配置
+├── PHOTON_DEPLOYMENT_GUIDE.md  # Photon Cloud部署指南
+├── SERVER_DEPLOYMENT_GUIDE.md  # 服务器部署指南
+├── photon-sdk/             # Photon SDK本地文件
+│   ├── lib/                # SDK库文件
+│   ├── doc/                # 文档
+│   └── src/                # 源代码
 └── README.md               # 项目说明
 ```
 
