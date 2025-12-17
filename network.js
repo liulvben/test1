@@ -96,17 +96,29 @@ class NetworkManager {
     // Photon Cloud连接
     connectToPhoton() {
         // 检查是否已加载Photon SDK
-        if (typeof loadBalancingClient === 'undefined' && typeof Photon === 'undefined') {
+        if (typeof loadBalancingClient === 'undefined' && 
+            (typeof Photon === 'undefined' || !Photon.LoadBalancing) &&
+            typeof ExitGames === 'undefined') {
             console.error('Photon SDK未加载，无法使用Photon Cloud连接');
             this.isConnecting = false;
             this.handleError('Photon SDK未加载');
+            
+            // 尝试重新加载SDK
+            this.retryPhotonConnection();
             return;
         }
         
         try {
             // 创建LoadBalancing客户端
-            const LoadBalancingClient = typeof loadBalancingClient !== 'undefined' ? loadBalancingClient : 
-                                      (typeof Photon !== 'undefined' ? Photon.LoadBalancing.LoadBalancingClient : null);
+            let LoadBalancingClient = null;
+            
+            if (typeof loadBalancingClient !== 'undefined') {
+                LoadBalancingClient = loadBalancingClient;
+            } else if (typeof Photon !== 'undefined' && Photon.LoadBalancing) {
+                LoadBalancingClient = Photon.LoadBalancing.LoadBalancingClient;
+            } else if (typeof ExitGames !== 'undefined') {
+                LoadBalancingClient = ExitGames.LoadBalancing.LoadBalancingClient;
+            }
             
             if (!LoadBalancingClient) {
                 throw new Error('无法找到Photon LoadBalancingClient');
@@ -126,7 +138,23 @@ class NetworkManager {
             console.error('初始化Photon客户端失败:', error);
             this.isConnecting = false;
             this.handleError(error);
+            
+            // 尝试重新加载SDK
+            this.retryPhotonConnection();
         }
+    }
+    
+    // 重试Photon连接
+    retryPhotonConnection() {
+        console.log('🔄 尝试重新加载Photon SDK...');
+        
+        // 延迟重试
+        setTimeout(() => {
+            if (!this.isConnected && !this.isConnecting) {
+                console.log('🔄 重新尝试Photon Cloud连接');
+                this.connectToPhoton();
+            }
+        }, 3000);
     }
     
     // 设置WebSocket事件

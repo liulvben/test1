@@ -86,7 +86,7 @@
                 <div class="game-controls">
                     <div class="server-info">
                         <p>使用Photon Cloud进行多人联机</p>
-                        <small>无需配置服务器地址，自动连接到Photon云服务</small>
+                        <small>GitHub Pages环境：自动使用Photon Cloud远程联机</small>
                     </div>
                     <div class="button-container">
                         <button id="connect-btn">连接服务器</button>
@@ -123,6 +123,9 @@
         window.addEventListener('load', function() {
             console.log('🌐 开始加载Photon Cloud SDK...');
             
+            // 检测当前环境
+            const isGitHubPages = window.location.hostname.includes('github.io');
+            
             // 多CDN备用方案
             const cdns = [
                 'https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js',
@@ -134,8 +137,9 @@
             let sdkLoaded = false;
             
             function checkSDKLoad() {
+                // 检查Photon SDK是否已加载
                 if (typeof loadBalancingClient !== 'undefined' || 
-                    typeof window.Photon !== 'undefined' ||
+                    (typeof window.Photon !== 'undefined' && window.Photon.LoadBalancing) ||
                     typeof window.ExitGames !== 'undefined') {
                     console.log('✅ Photon SDK加载成功，准备远程联机');
                     sdkLoaded = true;
@@ -145,6 +149,16 @@
                     if (statusIndicator) {
                         statusIndicator.textContent = 'SDK就绪';
                         statusIndicator.className = 'status-ready';
+                    }
+                    
+                    // GitHub Pages环境：自动尝试连接
+                    if (isGitHubPages) {
+                        console.log('🌐 GitHub Pages环境：自动尝试Photon Cloud连接');
+                        setTimeout(() => {
+                            if (window.networkManager && !window.networkManager.isConnected) {
+                                window.networkManager.connect();
+                            }
+                        }, 1000);
                     }
                     return;
                 }
@@ -169,6 +183,16 @@
                             }, 500);
                         } else {
                             console.error('❌ 所有CDN都加载失败，请检查网络连接');
+                            
+                            // GitHub Pages环境：显示友好提示
+                            if (isGitHubPages) {
+                                const statusIndicator = document.getElementById('status-indicator');
+                                if (statusIndicator) {
+                                    statusIndicator.textContent = 'SDK加载失败';
+                                    statusIndicator.className = 'status-offline';
+                                }
+                                showNotification('Photon SDK加载失败，请刷新页面重试', 'error');
+                            }
                         }
                     };
                     

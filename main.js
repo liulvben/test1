@@ -1,5 +1,10 @@
 // 主应用程序入口
 document.addEventListener('DOMContentLoaded', () => {
+    // 检测当前环境
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    const isLocalhost = window.location.hostname.includes('localhost') || 
+                       window.location.hostname.includes('127.0.0.1');
+    
     // 初始化游戏
     const game = new Game();
     
@@ -9,8 +14,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化网络管理器 - 支持WebSocket和Photon Cloud两种连接方式
     const networkManager = new NetworkManager();
     
-    // 设置连接类型为Photon Cloud（默认是websocket）
-    networkManager.setConnectionType('photon');
+    // 将网络管理器设置为全局变量，以便SDK加载后可以访问
+    window.networkManager = networkManager;
+    
+    // 根据环境自动设置连接类型
+    if (isGitHubPages) {
+        // GitHub Pages环境：强制使用Photon Cloud
+        networkManager.setConnectionType('photon');
+        console.log('🌐 GitHub Pages环境：使用Photon Cloud远程联机');
+    } else if (isLocalhost) {
+        // 本地环境：默认使用WebSocket，但可以手动选择
+        networkManager.setConnectionType('websocket');
+        console.log('🌐 本地环境：使用WebSocket连接');
+    } else {
+        // 其他环境：默认使用Photon Cloud
+        networkManager.setConnectionType('photon');
+        console.log('🌐 远程环境：使用Photon Cloud远程联机');
+    }
     
     networkManager.setGame(game);
     game.setNetworkManager(networkManager);
