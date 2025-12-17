@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photon本地SDK远程联机测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .connecting { background-color: #fff3cd; color: #856404; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-warning { background-color: #ffc107; color: black; }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .room-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Photon本地SDK远程联机测试</h1>
+        <p>使用本地Photon JavaScript SDK v4.4.0.0进行远程联机测试</p>
+        
+        <div class="status disconnected" id="connectionStatus">未连接</div>
+        
+        <div class="room-info" id="roomInfo" style="display:none;">
+            <h3>房间信息</h3>
+            <p><strong>房间名称:</strong> <span id="roomName">-</span></p>
+            <p><strong>玩家数量:</strong> <span id="playerCount">0</span>/<span id="maxPlayers">4</span></p>
+            <p><strong>房间状态:</strong> <span id="roomState">-</span></p>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-primary" onclick="connectToPhoton()">连接Photon</button>
+            <button class="btn-success" onclick="createRoom()">创建房间</button>
+            <button class="btn-warning" onclick="joinRandomRoom()">加入随机房间</button>
+            <button class="btn-danger" onclick="disconnect()">断开连接</button>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <h3>测试消息</h3>
+            <input type="text" id="messageInput" placeholder="输入测试消息" style="width: 300px; padding: 8px;">
+            <button class="btn-primary" onclick="sendTestMessage()">发送消息</button>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <h3>连接日志</h3>
+            <div class="log" id="log"></div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <h3>SDK信息</h3>
+            <div class="info status">
+                <p><strong>SDK版本:</strong> v4.4.0.0 (本地加载)</p>
+                <p><strong>加载方式:</strong> 本地文件，避免CDN依赖</p>
+                <p><strong>App ID:</strong> 使用项目配置的Photon App ID</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载本地Photon SDK -->
+    <script src="photon-sdk/lib/photon.min.js"></script>
+    
+    <script>
+        let client = null;
+        let currentRoom = null;
+        
+        // 日志函数
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> <span style="color: ${getColorForType(type)}">${message}</span>`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function getColorForType(type) {
+            switch(type) {
+                case 'error': return '#dc3545';
+                case 'success': return '#28a745';
+                case 'warning': return '#ffc107';
+                default: return '#007bff';
+            }
+        }
+        
+        // 更新连接状态
+        function updateConnectionStatus(status, message) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + status;
+        }
+        
+        // 连接Photon
+        function connectToPhoton() {
+            log('正在连接Photon服务器...', 'info');
+            updateConnectionStatus('connecting', '连接中...');
+            
+            try {
+                // 使用LoadBalancing客户端
+                client = new Photon.LoadBalancing.LoadBalancingClient({
+                    appId: '84e83fae-288e-4cf8-87e8-da69c2639380', // 使用项目配置的Photon App ID
+                    appVersion: '1.0'
+                });
+                
+                // 设置事件监听器
+                client.on(Photon.LoadBalancing.Constants.EventCode.Connect, () => {
+                    log('成功连接到Photon服务器', 'success');
+                    updateConnectionStatus('connected', '已连接');
+                });
+                
+                client.on(Photon.LoadBalancing.Constants.EventCode.Disconnect, () => {
+                    log('与Photon服务器断开连接', 'warning');
+                    updateConnectionStatus('disconnected', '已断开');
+                    document.getElementById('roomInfo').style.display = 'none';
+                });
+                
+                client.on(Photon.LoadBalancing.Constants.EventCode.Error, (error) => {
+                    log('连接错误: ' + JSON.stringify(error), 'error');
+                    updateConnectionStatus('error', '连接错误');
+                });
+                
+                // 房间相关事件
+                client.on(Photon.LoadBalancing.Constants.EventCode.JoinRoom, (room) => {
+                    currentRoom = room;
+                    log('成功加入房间: ' + room.name, 'success');
+                    updateRoomInfo();
+                });
+                
+                client.on(Photon.LoadBalancing.Constants.EventCode.LeaveRoom, () => {
+                    log('离开房间', 'info');
+                    currentRoom = null;
+                    document.getElementById('roomInfo').style.display = 'none';
+                });
+                
+                // 开始连接
+                client.connect();
+                
+            } catch (error) {
+                log('初始化连接失败: ' + error.message, 'error');
+                updateConnectionStatus('error', '初始化失败');
+            }
+        }
+        
+        // 创建房间
+        function createRoom() {
+            if (!client || !client.isConnected) {
+                log('请先连接到Photon服务器', 'warning');
+                return;
+            }
+            
+            const roomName = 'TestRoom_' + Date.now();
+            log('正在创建房间: ' + roomName, 'info');
+            
+            client.createRoom(roomName, {
+                maxPlayers: 4,
+                emptyRoomLiveTime: 30000 // 30秒后自动销毁空房间
+            });
+        }
+        
+        // 加入随机房间
+        function joinRandomRoom() {
+            if (!client || !client.isConnected) {
+                log('请先连接到Photon服务器', 'warning');
+                return;
+            }
+            
+            log('正在加入随机房间...', 'info');
+            client.joinRandomRoom();
+        }
+        
+        // 断开连接
+        function disconnect() {
+            if (client) {
+                log('正在断开连接...', 'info');
+                client.disconnect();
+                client = null;
+                currentRoom = null;
+                updateConnectionStatus('disconnected', '已断开');
+                document.getElementById('roomInfo').style.display = 'none';
+            }
+        }
+        
+        // 发送测试消息
+        function sendTestMessage() {
+            if (!currentRoom) {
+                log('请先加入一个房间', 'warning');
+                return;
+            }
+            
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                log('请输入消息内容', 'warning');
+                return;
+            }
+            
+            // 发送消息到房间
+            currentRoom.sendEvent({
+                code: 1, // 自定义事件代码
+                data: {
+                    message: message,
+                    timestamp: Date.now(),
+                    player: client.actor.name || '匿名玩家'
+                }
+            });
+            
+            log('发送消息: ' + message, 'info');
+            messageInput.value = '';
+        }
+        
+        // 更新房间信息
+        function updateRoomInfo() {
+            if (currentRoom) {
+                document.getElementById('roomName').textContent = currentRoom.name;
+                document.getElementById('playerCount').textContent = currentRoom.actorCount;
+                document.getElementById('maxPlayers').textContent = currentRoom.maxPlayers;
+                document.getElementById('roomState').textContent = currentRoom.isOpen ? '开放' : '关闭';
+                document.getElementById('roomInfo').style.display = 'block';
+            }
+        }
+        
+        // 页面加载时检查SDK是否加载成功
+        window.addEventListener('load', function() {
+            if (typeof Photon !== 'undefined') {
+                log('Photon SDK加载成功', 'success');
+                log('SDK版本: ' + (Photon.version || '未知'), 'info');
+            } else {
+                log('Photon SDK加载失败，请检查文件路径', 'error');
+            }
+        });
+        
+        // 添加键盘快捷键
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey && event.key === 'Enter') {
+                connectToPhoton();
+            }
+        });
+    </script>
+</body>
+</html>
