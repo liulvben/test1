@@ -9,7 +9,7 @@ class PhotonNetworkManager {
         this.game = null;
         
         // Photon Cloud配置
-        this.appId = 'YOUR_PHOTON_APP_ID'; // 需要替换为你的Photon App ID
+        this.appId = '84e83fae-288e-4cf8-87e8-da69c2639380'; // 需要替换为你的Photon App ID
         this.appVersion = '1.0';
         
         this.callbacks = {
