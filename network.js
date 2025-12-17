@@ -15,8 +15,8 @@ class NetworkManager {
         // 动态获取服务器地址，支持局域网连接
         this.serverUrl = this.getServerUrl();
         
-        // Photon Cloud配置 - 使用有效的App ID
-        this.photonAppId = '84e83fae-288e-4cf8-87e8-da69c2639380';
+        // Photon Cloud配置 - 需要从 https://dashboard.photonengine.com 获取有效App ID
+        this.photonAppId = 'bd2aeee8-29c8-4722-95b7-f1e65c1442a1'; // 当前ID无效，请替换为有效App ID
         this.photonAppVersion = '1.0';
         
         this.game = null;
