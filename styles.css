@@ -157,6 +157,27 @@ body {
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.server-info {
+    text-align: center;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    border: 1px solid #e9ecef;
+}
+
+.server-info p {
+    margin: 0 0 5px 0;
+    font-weight: bold;
+    color: #495057;
+}
+
+.server-info small {
+    color: #6c757d;
+    font-size: 0.85em;
 }
 
 .button-container {

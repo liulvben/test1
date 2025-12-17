@@ -84,9 +84,9 @@
                 </div>
                 
                 <div class="game-controls">
-                    <div class="server-input">
-                        <label for="server-url">服务器地址:</label>
-                        <input type="text" id="server-url" value="ws://localhost:8080/ws" placeholder="输入服务器地址">
+                    <div class="server-info">
+                        <p>使用Photon Cloud进行多人联机</p>
+                        <small>无需配置服务器地址，自动连接到Photon云服务</small>
                     </div>
                     <div class="button-container">
                         <button id="connect-btn">连接服务器</button>
@@ -104,8 +104,12 @@
     
     <div id="notification" class="notification hidden"></div>
     
+    <!-- Photon Cloud SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@photon/realtime@1.0.0/dist/photon-realtime.min.js"></script>
+    
     <script src="game.js"></script>
     <script src="network.js"></script>
+    <script src="photon-network.js"></script>
     <!-- <script src="mobile-controls.js"></script> -->
     <script src="main.js"></script>
 </body>

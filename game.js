@@ -259,6 +259,20 @@ class Game {
             
             // 定期更新UI显示
             this.updatePlayerStatusUI();
+            
+            // 如果是Photon网络管理器，定期发送玩家状态更新
+            if (this.networkManager && this.networkManager.isConnected && 
+                this.networkManager.constructor.name === 'PhotonNetworkManager') {
+                // 每2秒发送一次状态更新
+                if (!this.lastStatusUpdateTime || Date.now() - this.lastStatusUpdateTime > 2000) {
+                    this.networkManager.sendPlayerStatus(
+                        this.localPlayer.health, 
+                        this.localPlayer.resistance, 
+                        this.localPlayer.mana
+                    );
+                    this.lastStatusUpdateTime = Date.now();
+                }
+            }
         }
     }
     
@@ -491,6 +505,80 @@ class Game {
     // 设置网络管理器
     setNetworkManager(networkManager) {
         this.networkManager = networkManager;
+        
+        // 如果是Photon网络管理器，设置额外的回调
+        if (networkManager.constructor.name === 'PhotonNetworkManager') {
+            // 设置Photon特定的事件回调
+            networkManager.setCallback('onPlayerJoined', (playerData) => {
+                this.handlePlayerJoined(playerData);
+            });
+            
+            networkManager.setCallback('onPlayerLeft', (playerId) => {
+                this.handlePlayerLeft(playerId);
+            });
+            
+            networkManager.setCallback('onPlayerMove', (playerId, x, y, vx, vy) => {
+                this.updatePlayerPosition(playerId, x, y, vx, vy);
+            });
+            
+            networkManager.setCallback('onPlayerStatusUpdate', (playerId, health, resistance, mana) => {
+                this.updatePlayerStatus(playerId, health, resistance, mana);
+            });
+        }
+    }
+    
+    // 更新玩家状态
+    updatePlayerStatus(playerId, health, resistance, mana) {
+        const player = this.players.get(playerId);
+        if (player) {
+            player.health = health;
+            player.resistance = resistance;
+            player.mana = mana;
+            
+            // 更新UI显示
+            this.updatePlayerStatusUI();
+        }
+    }
+    
+    // 处理玩家加入事件
+    handlePlayerJoined(playerData) {
+        const player = new Player(playerData.id, playerData.x, playerData.y, playerData.color);
+        
+        // 设置玩家属性
+        player.health = playerData.health || 1000;
+        player.maxHealth = playerData.maxHealth || 1000;
+        player.resistance = playerData.resistance || 50;
+        player.maxResistance = playerData.maxResistance || 50;
+        player.mana = playerData.mana || 1000;
+        player.maxMana = playerData.maxMana || 1000;
+        
+        this.players.set(playerData.id, player);
+        
+        // 如果是本地玩家，设置为本地玩家
+        if (playerData.isLocal) {
+            this.localPlayer = player;
+            document.getElementById('player-id').textContent = playerData.id;
+        }
+        
+        console.log(`玩家 ${playerData.id} 加入游戏`);
+        
+        // 更新玩家数量显示
+        if (this.networkManager) {
+            this.networkManager.updatePlayerCount(this.players.size);
+        }
+    }
+    
+    // 处理玩家离开事件
+    handlePlayerLeft(playerId) {
+        this.removePlayer(playerId);
+        console.log(`玩家 ${playerId} 离开游戏`);
+        
+        // 更新玩家数量显示
+        if (this.networkManager) {
+            this.networkManager.updatePlayerCount(this.players.size);
+        }
+        
+        showNotification(`玩家 ${playerId} 离开了游戏`, 'info');
     }
     
     // 设置地图配置和障碍物
