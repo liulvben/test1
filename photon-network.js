@@ -33,7 +33,7 @@ class PhotonNetworkManager {
     // 初始化Photon客户端
     initPhoton() {
         // 检查是否已加载Photon SDK
-        if (typeof Photon === 'undefined') {
+        if (typeof loadBalancingClient === 'undefined') {
             console.error('Photon SDK未加载，请先引入Photon JavaScript SDK');
             this.handleError('Photon SDK未加载');
             return false;
@@ -41,11 +41,11 @@ class PhotonNetworkManager {
         
         try {
             // 创建LoadBalancing客户端
-            this.client = new Photon.LoadBalancing.LoadBalancingClient(
-                Photon.ConnectionProtocol.Wss,
-                this.appId,
-                this.appVersion
-            );
+            this.client = new loadBalancingClient({
+                appId: this.appId,
+                appVersion: this.appVersion,
+                useWSS: true
+            });
             
             // 设置事件监听器
             this.setupPhotonEvents();
@@ -62,17 +62,17 @@ class PhotonNetworkManager {
         if (!this.client) return;
         
         // 连接状态变化
-        this.client.onStateChange = (state) => {
+        this.client.on('connectionStateChange', (state) => {
             console.log('Photon连接状态变化:', state);
             
             switch (state) {
-                case Photon.LoadBalancing.Constants.State.Joined:
+                case 'Joined':
                     this.isConnected = true;
                     this.isConnecting = false;
                     this.updateConnectionStatus('online');
                     
                     // 设置玩家ID
-                    this.playerId = this.client.getUserId();
+                    this.playerId = this.client.userId;
                     document.getElementById('player-id').textContent = this.playerId;
                     
                     if (this.callbacks.onConnect) {
@@ -80,7 +80,7 @@ class PhotonNetworkManager {
                     }
                     break;
                     
-                case Photon.LoadBalancing.Constants.State.Disconnected:
+                case 'Disconnected':
                     this.isConnected = false;
                     this.isConnecting = false;
                     this.updateConnectionStatus('offline');
@@ -90,25 +90,25 @@ class PhotonNetworkManager {
                     }
                     break;
                     
-                case Photon.LoadBalancing.Constants.State.Connecting:
+                case 'Connecting':
                     this.isConnecting = true;
                     this.updateConnectionStatus('connecting');
                     break;
             }
-        };
+        });
         
         // 玩家加入房间
-        this.client.onPlayerJoined = (player) => {
-            console.log('玩家加入房间:', player.getUserId());
+        this.client.on('actorJoined', (actor) => {
+            console.log('玩家加入房间:', actor.actorNr);
             
             if (this.game && this.callbacks.onPlayerJoined) {
                 // 创建玩家对象
                 const playerData = {
-                    id: player.getUserId(),
+                    id: actor.actorNr.toString(),
                     x: Math.random() * 700 + 50,
                     y: Math.random() * 500 + 50,
                     color: this.generateColor(),
-                    isLocal: player.getUserId() === this.playerId
+                    isLocal: actor.actorNr === this.client.actorNr
                 };
                 
                 const gamePlayer = this.game.addPlayer(playerData);
@@ -118,35 +118,35 @@ class PhotonNetworkManager {
                 }
                 
                 this.callbacks.onPlayerJoined(gamePlayer);
-                showNotification(`玩家 ${player.getUserId()} 加入了游戏`, 'info');
+                showNotification(`玩家 ${actor.actorNr} 加入了游戏`, 'info');
             }
             
             this.updatePlayerCount();
-        };
+        });
         
         // 玩家离开房间
-        this.client.onPlayerLeft = (player) => {
-            console.log('玩家离开房间:', player.getUserId());
+        this.client.on('actorLeft', (actor) => {
+            console.log('玩家离开房间:', actor.actorNr);
             
             if (this.game && this.callbacks.onPlayerLeft) {
-                this.game.removePlayer(player.getUserId());
-                this.callbacks.onPlayerLeft(player.getUserId());
-                showNotification(`玩家 ${player.getUserId()} 离开了游戏`, 'info');
+                this.game.removePlayer(actor.actorNr.toString());
+                this.callbacks.onPlayerLeft(actor.actorNr.toString());
+                showNotification(`玩家 ${actor.actorNr} 离开了游戏`, 'info');
             }
             
             this.updatePlayerCount();
-        };
+        });
         
         // 接收自定义事件
-        this.client.onEvent = (eventCode, content, actorNr) => {
-            this.handlePhotonEvent(eventCode, content, actorNr);
-        };
+        this.client.on('customEvent', (eventData) => {
+            this.handlePhotonEvent(eventData.eventCode, eventData.data, eventData.sender);
+        });
         
         // 错误处理
-        this.client.onError = (error) => {
+        this.client.on('error', (error) => {
             console.error('Photon错误:', error);
             this.handleError(error);
-        };
+        });
     }
     
     // 处理Photon事件
@@ -230,8 +230,10 @@ class PhotonNetworkManager {
         console.log('开始连接到Photon Cloud');
         
         try {
-            // 连接到Photon Cloud
-            this.client.connect();
+            // 连接到Photon Cloud并自动加入房间
+            this.client.connectAndJoinRandomRoom({
+                maxPlayers: 4
+            });
         } catch (error) {
             console.error('连接Photon Cloud失败:', error);
             this.isConnecting = false;
@@ -246,24 +248,19 @@ class PhotonNetworkManager {
             return;
         }
         
-        const roomOptions = {
-            maxPlayers: 4,
-            customRoomProperties: { gameType: 'moba' },
-            customRoomPropertiesForLobby: ['gameType']
-        };
-        
-        this.client.joinRandomOrCreateRoom(null, roomOptions);
+        // 在connect()中已经自动加入房间，这里可以留空或添加其他逻辑
+        console.log('已自动加入房间');
     }
     
     // 发送玩家移动数据
     sendPlayerMove(x, y, vx, vy) {
-        if (!this.isConnected || !this.room) {
+        if (!this.isConnected || !this.client.currentRoom) {
             return false;
         }
         
         try {
             const eventData = { x, y, vx, vy };
-            this.client.sendEvent(1, eventData, { receiverGroup: Photon.LoadBalancing.ReceiverGroup.Others });
+            this.client.sendEvent(1, eventData);
             return true;
         } catch (error) {
             console.error('发送移动数据失败:', error);
@@ -273,13 +270,13 @@ class PhotonNetworkManager {
     
     // 发送波打法事件
     sendWaveAttack(x, y) {
-        if (!this.isConnected || !this.room) {
+        if (!this.isConnected || !this.client.currentRoom) {
             return false;
         }
         
         try {
             const eventData = { x, y, playerId: this.playerId };
-            this.client.sendEvent(2, eventData, { receiverGroup: Photon.LoadBalancing.ReceiverGroup.All });
+            this.client.sendEvent(2, eventData);
             return true;
         } catch (error) {
             console.error('发送波打法事件失败:', error);
@@ -289,7 +286,7 @@ class PhotonNetworkManager {
     
     // 发送玩家状态更新
     sendPlayerStatus(health, resistance, mana) {
-        if (!this.isConnected || !this.room) {
+        if (!this.isConnected || !this.client.currentRoom) {
             return false;
         }
         
@@ -299,7 +296,7 @@ class PhotonNetworkManager {
                 resistance: Math.round(resistance), 
                 mana: Math.round(mana) 
             };
-            this.client.sendEvent(5, eventData, { receiverGroup: Photon.LoadBalancing.ReceiverGroup.Others });
+            this.client.sendEvent(5, eventData);
             return true;
         } catch (error) {
             console.error('发送玩家状态失败:', error);
@@ -317,6 +314,16 @@ class PhotonNetworkManager {
         this.isConnected = false;
         this.isConnecting = false;
         this.updateConnectionStatus('offline');
+    }
+    
+    // 更新在线玩家数量
+    updatePlayerCount() {
+        if (this.client && this.client.currentRoom) {
+            const count = this.client.currentRoom.actorCount;
+            document.getElementById('player-count').textContent = `在线玩家: ${count}`;
+        } else {
+            document.getElementById('player-count').textContent = '在线玩家: 0';
+        }
     }
     
     // 生成随机颜色
