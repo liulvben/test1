@@ -22,6 +22,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // GitHub Pages环境：强制使用Photon Cloud
         networkManager.setConnectionType('photon');
         console.log('🌐 GitHub Pages环境：使用Photon Cloud远程联机');
+        
+        // 在GitHub Pages环境下，添加SDK加载完成后的自动连接
+        window.addEventListener('photonSDKLoaded', function() {
+            console.log('🌐 Photon SDK已加载，准备自动连接...');
+            setTimeout(() => {
+                if (networkManager && !networkManager.isConnected) {
+                    console.log('🌐 开始自动连接Photon Cloud...');
+                    networkManager.connect();
+                }
+            }, 1000);
+        });
     } else if (isLocalhost) {
         // 本地环境：默认使用WebSocket，但可以手动选择
         networkManager.setConnectionType('websocket');

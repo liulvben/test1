@@ -117,7 +117,6 @@
     <div id="notification" class="notification hidden"></div>
     
     <!-- Photon Cloud SDK - 远程联机专用 -->
-    <script src="https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js"></script>
     <script>
         // 增强SDK加载检查 - 支持远程联机
         window.addEventListener('load', function() {
@@ -126,21 +125,24 @@
             // 检测当前环境
             const isGitHubPages = window.location.hostname.includes('github.io');
             
-            // 多CDN备用方案
+            // 多CDN备用方案 - 更新为可用的链接
             const cdns = [
-                'https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js',
                 'https://unpkg.com/@photonengine/realtime@5.0.4/dist/realtime.min.js',
-                'https://cdn.photonengine.com/realtime/5.0.4/realtime.min.js'
+                'https://cdn.photonengine.com/realtime/5.0.4/realtime.min.js',
+                'https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js'
             ];
             
             let currentCdn = 0;
             let sdkLoaded = false;
             
             function checkSDKLoad() {
-                // 检查Photon SDK是否已加载
-                if (typeof loadBalancingClient !== 'undefined' || 
+                // 检查Photon SDK是否已加载 - 增强检测逻辑
+                const sdkAvailable = typeof loadBalancingClient !== 'undefined' || 
                     (typeof window.Photon !== 'undefined' && window.Photon.LoadBalancing) ||
-                    typeof window.ExitGames !== 'undefined') {
+                    typeof window.ExitGames !== 'undefined' ||
+                    (typeof window !== 'undefined' && window.Photon && window.Photon.LoadBalancing);
+                
+                if (sdkAvailable) {
                     console.log('✅ Photon SDK加载成功，准备远程联机');
                     sdkLoaded = true;
                     
@@ -151,14 +153,20 @@
                         statusIndicator.className = 'status-ready';
                     }
                     
-                    // GitHub Pages环境：自动尝试连接
+                    // GitHub Pages环境：自动尝试连接并触发事件
                     if (isGitHubPages) {
                         console.log('🌐 GitHub Pages环境：自动尝试Photon Cloud连接');
+                        
+                        // 触发自定义事件通知SDK已加载
+                        const sdkLoadedEvent = new CustomEvent('photonSDKLoaded');
+                        window.dispatchEvent(sdkLoadedEvent);
+                        
                         setTimeout(() => {
                             if (window.networkManager && !window.networkManager.isConnected) {
+                                console.log('🌐 开始自动连接Photon Cloud...');
                                 window.networkManager.connect();
                             }
-                        }, 1000);
+                        }, 2000);
                     }
                     return;
                 }

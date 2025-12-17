@@ -15,7 +15,7 @@ class NetworkManager {
         // 动态获取服务器地址，支持局域网连接
         this.serverUrl = this.getServerUrl();
         
-        // Photon Cloud配置
+        // Photon Cloud配置 - 使用有效的App ID
         this.photonAppId = '84e83fae-288e-4cf8-87e8-da69c2639380';
         this.photonAppVersion = '1.0';
         
@@ -130,9 +130,26 @@ class NetworkManager {
                 useWSS: true
             });
             
-            console.log('Photon客户端创建成功');
+            console.log('Photon客户端创建成功，开始连接...');
             this.setupPhotonEvents();
+            
+            // 添加连接超时检测
+            const connectionTimeout = setTimeout(() => {
+                if (!this.isConnected && this.isConnecting) {
+                    console.warn('Photon连接超时，尝试重新连接');
+                    this.handleError('连接超时');
+                    this.retryPhotonConnection();
+                }
+            }, 10000); // 10秒超时
+            
             this.client.connect();
+            
+            // 连接成功后清除超时检测
+            this.client.on('connectionStateChange', (state) => {
+                if (state === 'Joined') {
+                    clearTimeout(connectionTimeout);
+                }
+            });
             
         } catch (error) {
             console.error('初始化Photon客户端失败:', error);
