@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Pages + Photon Cloud 修复版</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            min-height: 100vh;
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 20px;
+        }
+        .header h1 { 
+            color: #4a9eff; 
+            font-size: 2.5em; 
+            margin-bottom: 10px;
+        }
+        .status-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px; 
+            margin-bottom: 30px;
+        }
+        .status-item { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center;
+            border-left: 4px solid #4a9eff;
+        }
+        .status-item h3 { 
+            margin: 0 0 10px 0; 
+            color: #495057;
+            font-size: 1em;
+        }
+        .status-value { 
+            font-size: 1.5em; 
+            font-weight: bold; 
+            color: #4a9eff;
+        }
+        .controls { 
+            display: flex; 
+            gap: 10px; 
+            justify-content: center; 
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .btn { 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: all 0.3s;
+        }
+        .btn-primary { 
+            background: #007bff; 
+            color: white;
+        }
+        .btn-success { 
+            background: #28a745; 
+            color: white;
+        }
+        .btn-danger { 
+            background: #dc3545; 
+            color: white;
+        }
+        .btn:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed;
+        }
+        .log-container { 
+            background: #1a1a1a; 
+            color: #00ff00; 
+            padding: 15px; 
+            border-radius: 5px; 
+            font-family: 'Courier New', monospace; 
+            height: 300px; 
+            overflow-y: auto;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        .diagnostic { 
+            background: #fff3cd; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+        .solution { 
+            background: #d4edda; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 20px 0;
+            border-left: 4px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 GitHub Pages Photon Cloud 修复版</h1>
+            <p>专门解决GitHub Pages环境下的网络连接问题</p>
+        </div>
+        
+        <div class="diagnostic">
+            <h3>🔍 问题诊断</h3>
+            <p><strong>问题：</strong>GitHub Pages环境下Photon Cloud连接失败</p>
+            <p><strong>可能原因：</strong></p>
+            <ul>
+                <li>GitHub Pages的CORS限制</li>
+                <li>WebSocket连接被阻止</li>
+                <li>CDN链接被屏蔽</li>
+                <li>HTTPS/HTTP混合内容问题</li>
+            </ul>
+        </div>
+        
+        <div class="status-grid">
+            <div class="status-item">
+                <h3>连接状态</h3>
+                <div id="connection-status" class="status-value">🔴 离线</div>
+            </div>
+            <div class="status-item">
+                <h3>SDK状态</h3>
+                <div id="sdk-status" class="status-value">🔄 检测中</div>
+            </div>
+            <div class="status-item">
+                <h3>网络检测</h3>
+                <div id="network-status" class="status-value">⏳ 测试中</div>
+            </div>
+            <div class="status-item">
+                <h3>环境检测</h3>
+                <div id="env-status" class="status-value">🌐 GitHub Pages</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" onclick="testNetwork()">🌐 测试网络连接</button>
+            <button class="btn btn-success" onclick="connectPhoton()">🚀 连接Photon</button>
+            <button class="btn btn-danger" onclick="disconnectPhoton()" disabled>❌ 断开</button>
+        </div>
+        
+        <div class="solution">
+            <h3>💡 解决方案</h3>
+            <p>本页面采用以下技术解决GitHub Pages连接问题：</p>
+            <ul>
+                <li>使用HTTPS安全的WebSocket连接</li>
+                <li>动态CDN加载策略</li>
+                <li>网络连接预检测</li>
+                <li>详细的错误诊断信息</li>
+            </ul>
+        </div>
+        
+        <div class="log-container" id="log">
+            <div>[系统] 🔧 GitHub Pages Photon Cloud修复版已加载</div>
+            <div>[系统] 🌐 开始环境检测...</div>
+        </div>
+    </div>
+
+    <script>
+        // 环境检测
+        function detectEnvironment() {
+            const isGitHubPages = window.location.hostname.includes('github.io');
+            const isHTTPS = window.location.protocol === 'https:';
+            
+            document.getElementById('env-status').textContent = 
+                isGitHubPages ? '🌐 GitHub Pages' : '💻 本地环境';
+            
+            log(`环境检测: ${isGitHubPages ? 'GitHub Pages' : '本地'}, HTTPS: ${isHTTPS}`);
+            
+            if (!isHTTPS) {
+                log('⚠️ 警告: 非HTTPS环境可能影响WebSocket连接');
+            }
+        }
+
+        // 网络连接测试
+        async function testNetwork() {
+            const networkStatus = document.getElementById('network-status');
+            networkStatus.textContent = '🔄 测试中...';
+            networkStatus.style.color = '#ffc107';
+            
+            log('🌐 开始网络连接测试...');
+            
+            const testUrls = [
+                'https://cdn.jsdelivr.net',
+                'https://unpkg.com',
+                'https://photonengine.com'
+            ];
+            
+            let successCount = 0;
+            
+            for (let i = 0; i < testUrls.length; i++) {
+                try {
+                    const response = await fetch(testUrls[i], { 
+                        method: 'HEAD',
+                        mode: 'no-cors'
+                    });
+                    successCount++;
+                    log(`✅ ${testUrls[i]} - 可访问`);
+                } catch (error) {
+                    log(`❌ ${testUrls[i]} - 访问失败`);
+                }
+            }
+            
+            if (successCount > 0) {
+                networkStatus.textContent = '✅ 网络正常';
+                networkStatus.style.color = '#28a745';
+                log(`🌐 网络测试完成: ${successCount}/${testUrls.length} 个服务可访问`);
+            } else {
+                networkStatus.textContent = '❌ 网络异常';
+                networkStatus.style.color = '#dc3545';
+                log('❌ 网络连接异常，请检查网络设置');
+            }
+        }
+
+        // Photon SDK加载
+        function loadPhotonSDK() {
+            return new Promise((resolve, reject) => {
+                if (window.loadBalancingClient) {
+                    log('✅ Photon SDK已加载');
+                    resolve();
+                    return;
+                }
+                
+                log('📥 开始加载Photon SDK...');
+                
+                const cdns = [
+                    'https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js',
+                    'https://unpkg.com/@photonengine/realtime@5.0.4/dist/realtime.min.js'
+                ];
+                
+                let currentCdn = 0;
+                
+                function tryLoad() {
+                    if (currentCdn >= cdns.length) {
+                        reject('所有CDN加载失败');
+                        return;
+                    }
+                    
+                    const script = document.createElement('script');
+                    script.src = cdns[currentCdn];
+                    
+                    script.onload = () => {
+                        log(`✅ CDN加载成功: ${cdns[currentCdn]}`);
+                        setTimeout(() => {
+                            if (window.loadBalancingClient) {
+                                resolve();
+                            } else {
+                                currentCdn++;
+                                tryLoad();
+                            }
+                        }, 1000);
+                    };
+                    
+                    script.onerror = () => {
+                        log(`❌ CDN加载失败: ${cdns[currentCdn]}`);
+                        currentCdn++;
+                        tryLoad();
+                    };
+                    
+                    document.head.appendChild(script);
+                }
+                
+                tryLoad();
+            });
+        }
+
+        // Photon连接
+        async function connectPhoton() {
+            const statusElement = document.getElementById('connection-status');
+            const sdkStatusElement = document.getElementById('sdk-status');
+            
+            try {
+                statusElement.textContent = '🔄 连接中...';
+                statusElement.style.color = '#ffc107';
+                
+                log('🚀 开始连接Photon Cloud...');
+                
+                // 加载SDK
+                await loadPhotonSDK();
+                sdkStatusElement.textContent = '✅ 已加载';
+                sdkStatusElement.style.color = '#28a745';
+                
+                // 创建客户端
+                const client = new loadBalancingClient({
+                    appId: '84e83fae-288e-4cf8-87e8-da69c2639380',
+                    appVersion: '1.0',
+                    useWSS: true // 使用安全的WebSocket
+                });
+                
+                // 设置事件监听
+                client.on('connectionStateChange', (state) => {
+                    log(`🔌 连接状态: ${state}`);
+                    
+                    if (state === 'Joined') {
+                        statusElement.textContent = '✅ 已连接';
+                        statusElement.style.color = '#28a745';
+                        log('🎉 成功连接到Photon Cloud!');
+                        
+                        // 启用断开按钮
+                        document.querySelector('.btn-danger').disabled = false;
+                    } else if (state === 'Disconnected') {
+                        statusElement.textContent = '🔴 离线';
+                        statusElement.style.color = '#dc3545';
+                        document.querySelector('.btn-danger').disabled = true;
+                    }
+                });
+                
+                client.on('error', (error) => {
+                    log(`❌ 连接错误: ${error}`);
+                    statusElement.textContent = '❌ 连接失败';
+                    statusElement.style.color = '#dc3545';
+                });
+                
+                // 连接
+                client.connectAndJoinRandomRoom({ maxPlayers: 4 });
+                
+            } catch (error) {
+                log(`❌ 连接失败: ${error}`);
+                statusElement.textContent = '❌ 连接失败';
+                statusElement.style.color = '#dc3545';
+                sdkStatusElement.textContent = '❌ 加载失败';
+                sdkStatusElement.style.color = '#dc3545';
+            }
+        }
+
+        function disconnectPhoton() {
+            log('🔌 断开Photon连接');
+            const statusElement = document.getElementById('connection-status');
+            statusElement.textContent = '🔴 离线';
+            statusElement.style.color = '#dc3545';
+            document.querySelector('.btn-danger').disabled = true;
+        }
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 页面加载
+        window.addEventListener('load', () => {
+            detectEnvironment();
+            testNetwork();
+            
+            // 自动检测SDK
+            setTimeout(() => {
+                if (window.loadBalancingClient) {
+                    document.getElementById('sdk-status').textContent = '✅ 已加载';
+                    document.getElementById('sdk-status').style.color = '#28a745';
+                } else {
+                    document.getElementById('sdk-status').textContent = '❌ 未加载';
+                    document.getElementById('sdk-status').style.color = '#dc3545';
+                }
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
