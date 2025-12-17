@@ -1,0 +1,3 @@
+# Prevent Jekyll processing on GitHub Pages
+# This file ensures that GitHub Pages doesn't process our files with Jekyll
+# which can cause issues with certain file types and configurations

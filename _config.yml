@@ -1,0 +1,38 @@
+# GitHub Pages configuration
+# This file configures GitHub Pages for static site hosting
+
+# Basic settings
+title: "MOBA对战游戏 - Photon远程联机"
+description: "基于HTML5 Canvas和Photon Cloud的联网对战MOBA小游戏"
+baseurl: "/test1" # 如果您的仓库名为test1
+url: "https://liulvben.github.io"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Exclude files from processing
+exclude:
+  - README.md
+  - package.json
+  - package-lock.json
+  - server.js
+  - start-server.bat
+  - node_modules/
+  - .git/
+
+# Include necessary files
+include:
+  - .nojekyll
+
+# Theme settings (optional)
+theme: jekyll-theme-minimal
+
+# Custom settings
+repository: "liulvben/test1"
+plugins:
+  - jekyll-sitemap
+
+# Enable CORS for external resources
+cors:
+  enabled: true
