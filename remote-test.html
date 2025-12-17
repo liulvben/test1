@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photon Cloud远程联机测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; font-weight: bold; }
+        .online { background-color: #d4edda; color: #155724; }
+        .offline { background-color: #f8d7da; color: #721c24; }
+        .connecting { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .connect { background-color: #007bff; color: white; }
+        .disconnect { background-color: #dc3545; color: white; }
+        .info { background: #e9ecef; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Photon Cloud远程联机测试</h1>
+        <div class="info">
+            <strong>测试目标：</strong>实现真正的远程多人联机游戏<br>
+            <strong>技术栈：</strong>Photon Cloud + GitHub Pages<br>
+            <strong>App ID：</strong>84e83fae-288e-4cf8-87e8-da69c2639380
+        </div>
+        
+        <div id="status" class="status offline">🔴 离线</div>
+        <div>👥 在线玩家: <span id="playerCount">0</span></div>
+        <div>🏠 房间: <span id="roomInfo">未加入</span></div>
+        
+        <button class="connect" onclick="connectPhoton()">🚀 连接Photon Cloud</button>
+        <button class="disconnect" onclick="disconnectPhoton()">❌ 断开连接</button>
+        <button onclick="sendTestEvent()">📤 发送测试事件</button>
+        
+        <div id="log" style="margin-top: 20px; height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: #f8f9fa;"></div>
+    </div>
+
+    <!-- Photon Cloud SDK - 使用多个CDN确保加载成功 -->
+    <script src="https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js"></script>
+    <script>
+        // 备用CDN加载
+        setTimeout(function() {
+            if (typeof loadBalancingClient === 'undefined') {
+                console.log('Primary CDN failed, loading backup...');
+                var backupScript = document.createElement('script');
+                backupScript.src = 'https://unpkg.com/@photonengine/realtime@5.0.4/dist/realtime.min.js';
+                document.head.appendChild(backupScript);
+            }
+        }, 3000);
+    </script>
+    
+    <script>
+        let photonClient = null;
+        let isConnected = false;
+        let playerId = null;
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `<span style="color: #666;">[${timestamp}]</span> ${message}<br>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateStatus(status) {
+            const statusElement = document.getElementById('status');
+            statusElement.className = 'status ' + status;
+            statusElement.innerHTML = status === 'online' ? '🟢 在线' : 
+                                   status === 'connecting' ? '🟡 连接中' : '🔴 离线';
+        }
+
+        function updatePlayerCount(count) {
+            document.getElementById('playerCount').textContent = count;
+        }
+
+        function updateRoomInfo(info) {
+            document.getElementById('roomInfo').textContent = info;
+        }
+
+        // 动态加载Photon SDK
+        function loadPhotonSDK() {
+            return new Promise((resolve, reject) => {
+                // 检查是否已加载
+                if (typeof loadBalancingClient !== 'undefined') {
+                    log('✅ Photon SDK已加载');
+                    resolve();
+                    return;
+                }
+
+                log('📥 加载Photon SDK...');
+                
+                // 尝试多个CDN
+                const cdns = [
+                    'https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js',
+                    'https://unpkg.com/@photonengine/realtime@5.0.4/dist/realtime.min.js',
+                    'https://cdn.photonengine.com/realtime/5.0.4/realtime.min.js'
+                ];
+
+                let currentCdn = 0;
+
+                function tryNextCDN() {
+                    if (currentCdn >= cdns.length) {
+                        reject('所有CDN都加载失败');
+                        return;
+                    }
+
+                    const script = document.createElement('script');
+                    script.src = cdns[currentCdn];
+                    
+                    script.onload = () => {
+                        log(`✅ CDN ${currentCdn + 1} 加载成功`);
+                        setTimeout(() => {
+                            if (typeof loadBalancingClient !== 'undefined') {
+                                resolve();
+                            } else {
+                                log('❌ SDK加载但未定义，尝试下一个CDN');
+                                currentCdn++;
+                                tryNextCDN();
+                            }
+                        }, 1000);
+                    };
+                    
+                    script.onerror = () => {
+                        log(`❌ CDN ${currentCdn + 1} 加载失败`);
+                        currentCdn++;
+                        tryNextCDN();
+                    };
+                    
+                    document.head.appendChild(script);
+                }
+
+                tryNextCDN();
+            });
+        }
+
+        async function connectPhoton() {
+            if (isConnected) {
+                log('⚠️ 已经连接到Photon Cloud');
+                return;
+            }
+
+            try {
+                updateStatus('connecting');
+                log('🚀 开始连接Photon Cloud...');
+                
+                // 加载SDK
+                await loadPhotonSDK();
+                
+                log('🔗 创建Photon客户端...');
+                
+                // 创建客户端
+                photonClient = new loadBalancingClient({
+                    appId: '84e83fae-288e-4cf8-87e8-da69c2639380',
+                    appVersion: '1.0',
+                    useWSS: true
+                });
+
+                // 设置事件监听
+                setupPhotonEvents();
+
+                // 连接并加入房间
+                log('🎯 连接并加入随机房间...');
+                photonClient.connectAndJoinRandomRoom({
+                    maxPlayers: 4
+                });
+
+            } catch (error) {
+                log(`❌ 连接失败: ${error}`);
+                updateStatus('offline');
+                log('💡 解决方案:');
+                log('1. 检查网络连接');
+                log('2. 确认App ID正确');
+                log('3. 按F12查看浏览器控制台错误');
+            }
+        }
+
+        function setupPhotonEvents() {
+            photonClient.on('connectionStateChange', (state) => {
+                log(`🔌 连接状态: ${state}`);
+                
+                if (state === 'Joined') {
+                    isConnected = true;
+                    updateStatus('online');
+                    playerId = photonClient.userId;
+                    log('🎉 成功连接到Photon Cloud!');
+                    log(`👤 玩家ID: ${playerId}`);
+                    
+                    if (photonClient.currentRoom) {
+                        const room = photonClient.currentRoom;
+                        updateRoomInfo(room.name);
+                        updatePlayerCount(room.actorCount);
+                        log(`🏠 房间: ${room.name}, 玩家数: ${room.actorCount}`);
+                    }
+                } else if (state === 'Disconnected') {
+                    isConnected = false;
+                    updateStatus('offline');
+                    log('🔌 与Photon Cloud断开连接');
+                }
+            });
+
+            photonClient.on('actorJoined', (actor) => {
+                log(`👥 玩家加入: ${actor.actorNr}`);
+                if (photonClient.currentRoom) {
+                    updatePlayerCount(photonClient.currentRoom.actorCount);
+                }
+            });
+
+            photonClient.on('actorLeft', (actor) => {
+                log(`👋 玩家离开: ${actor.actorNr}`);
+                if (photonClient.currentRoom) {
+                    updatePlayerCount(photonClient.currentRoom.actorCount);
+                }
+            });
+
+            photonClient.on('customEvent', (eventData) => {
+                log(`📨 收到自定义事件: ${JSON.stringify(eventData)}`);
+            });
+
+            photonClient.on('error', (error) => {
+                log(`❌ 错误: ${error}`);
+                updateStatus('offline');
+            });
+        }
+
+        function sendTestEvent() {
+            if (!isConnected || !photonClient) {
+                log('⚠️ 请先连接到Photon Cloud');
+                return;
+            }
+
+            const testEvent = {
+                type: 'test_message',
+                playerId: playerId,
+                message: '远程联机测试消息',
+                timestamp: Date.now()
+            };
+
+            photonClient.sendEvent(testEvent);
+            log('📤 发送测试事件');
+        }
+
+        function disconnectPhoton() {
+            if (photonClient) {
+                photonClient.disconnect();
+                photonClient = null;
+                isConnected = false;
+                updateStatus('offline');
+                updatePlayerCount(0);
+                updateRoomInfo('未加入');
+                log('🔌 已断开连接');
+            }
+        }
+
+        // 页面加载时显示基本信息
+        window.onload = function() {
+            log('🌐 远程联机测试页面加载完成');
+            log('💡 点击"连接Photon Cloud"开始测试');
+            log('🎯 目标：实现真正的远程多人游戏');
+            
+            // 自动检查SDK加载状态
+            setTimeout(() => {
+                if (typeof loadBalancingClient !== 'undefined') {
+                    log('✅ Photon SDK已就绪');
+                } else {
+                    log('⚠️ 等待Photon SDK加载...');
+                }
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

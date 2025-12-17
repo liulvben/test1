@@ -104,8 +104,72 @@
     
     <div id="notification" class="notification hidden"></div>
     
-    <!-- Photon Cloud SDK -->
+    <!-- Photon Cloud SDK - 远程联机专用 -->
     <script src="https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js"></script>
+    <script>
+        // 增强SDK加载检查 - 支持远程联机
+        window.addEventListener('load', function() {
+            console.log('🌐 开始加载Photon Cloud SDK...');
+            
+            // 多CDN备用方案
+            const cdns = [
+                'https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js',
+                'https://unpkg.com/@photonengine/realtime@5.0.4/dist/realtime.min.js',
+                'https://cdn.photonengine.com/realtime/5.0.4/realtime.min.js'
+            ];
+            
+            let currentCdn = 0;
+            let sdkLoaded = false;
+            
+            function checkSDKLoad() {
+                if (typeof loadBalancingClient !== 'undefined' || 
+                    typeof window.Photon !== 'undefined' ||
+                    typeof window.ExitGames !== 'undefined') {
+                    console.log('✅ Photon SDK加载成功，准备远程联机');
+                    sdkLoaded = true;
+                    
+                    // 更新页面状态
+                    const statusIndicator = document.getElementById('status-indicator');
+                    if (statusIndicator) {
+                        statusIndicator.textContent = 'SDK就绪';
+                        statusIndicator.className = 'status-ready';
+                    }
+                    return;
+                }
+                
+                if (!sdkLoaded && currentCdn < cdns.length) {
+                    console.log(`🔄 尝试CDN ${currentCdn + 1}: ${cdns[currentCdn]}`);
+                    
+                    const script = document.createElement('script');
+                    script.src = cdns[currentCdn];
+                    
+                    script.onload = function() {
+                        console.log(`✅ CDN ${currentCdn + 1} 加载完成`);
+                        setTimeout(checkSDKLoad, 1000);
+                    };
+                    
+                    script.onerror = function() {
+                        console.log(`❌ CDN ${currentCdn + 1} 加载失败`);
+                        currentCdn++;
+                        if (currentCdn < cdns.length) {
+                            setTimeout(function() {
+                                document.head.appendChild(script);
+                            }, 500);
+                        } else {
+                            console.error('❌ 所有CDN都加载失败，请检查网络连接');
+                        }
+                    };
+                    
+                    document.head.appendChild(script);
+                } else if (!sdkLoaded) {
+                    console.error('❌ 无法加载Photon SDK，远程联机功能将不可用');
+                }
+            }
+            
+            // 延迟检查，确保主CDN有机会加载
+            setTimeout(checkSDKLoad, 2000);
+        });
+    </script>
     
     <script src="game.js"></script>
     <script src="network.js"></script>

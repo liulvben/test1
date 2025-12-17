@@ -64,6 +64,16 @@ body {
     color: white;
 }
 
+.status-ready {
+    background-color: #2196F3;
+    color: white;
+}
+
+.status-remote {
+    background-color: #9C27B0;
+    color: white;
+}
+
 .game-main {
     display: flex;
     flex: 1;
