@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photon Cloud直接连接测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; font-weight: bold; }
+        .online { background-color: #d4edda; color: #155724; }
+        .offline { background-color: #f8d7da; color: #721c24; }
+        .connecting { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .connect { background-color: #007bff; color: white; }
+        .disconnect { background-color: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Photon Cloud直接连接测试</h1>
+    <div id="status" class="status offline">离线</div>
+    <button class="connect" onclick="testDirectConnection()">测试直接连接</button>
+    <div id="log" style="margin-top: 20px; height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;"></div>
+
+    <script>
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}<br>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateStatus(status) {
+            const statusElement = document.getElementById('status');
+            statusElement.className = 'status ' + status;
+            statusElement.textContent = status === 'online' ? '在线' : status === 'connecting' ? '连接中' : '离线';
+        }
+
+        // 测试直接WebSocket连接到Photon服务器
+        async function testDirectConnection() {
+            updateStatus('connecting');
+            log('开始测试直接连接到Photon服务器...');
+            
+            try {
+                // 测试网络连接
+                log('1. 测试网络连接...');
+                const networkTest = await testNetworkConnectivity();
+                if (!networkTest) {
+                    log('❌ 网络连接测试失败');
+                    updateStatus('offline');
+                    return;
+                }
+                log('✓ 网络连接正常');
+
+                // 测试Photon服务器连接
+                log('2. 测试Photon服务器连接...');
+                const photonTest = await testPhotonServer();
+                if (!photonTest) {
+                    log('❌ Photon服务器连接测试失败');
+                    updateStatus('offline');
+                    return;
+                }
+                log('✓ Photon服务器连接正常');
+
+                // 测试WebSocket连接
+                log('3. 测试WebSocket连接...');
+                const wsTest = await testWebSocketConnection();
+                if (!wsTest) {
+                    log('❌ WebSocket连接测试失败');
+                    updateStatus('offline');
+                    return;
+                }
+                log('✓ WebSocket连接正常');
+
+                updateStatus('online');
+                log('🎉 所有连接测试通过！');
+                log('问题可能在于Photon SDK的CDN链接被屏蔽');
+                log('建议解决方案：');
+                log('1. 使用本地WebSocket服务器（当前已运行）');
+                log('2. 下载Photon SDK到本地文件');
+                log('3. 使用其他CDN服务');
+
+            } catch (error) {
+                log('❌ 测试失败: ' + error);
+                updateStatus('offline');
+            }
+        }
+
+        // 测试网络连接
+        async function testNetworkConnectivity() {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = 'https://www.google.com/favicon.ico?t=' + Date.now();
+                setTimeout(() => resolve(false), 5000);
+            });
+        }
+
+        // 测试Photon服务器连接
+        async function testPhotonServer() {
+            return new Promise((resolve) => {
+                const xhr = new XMLHttpRequest();
+                xhr.timeout = 5000;
+                xhr.onload = () => resolve(xhr.status === 200);
+                xhr.onerror = () => resolve(false);
+                xhr.ontimeout = () => resolve(false);
+                
+                try {
+                    xhr.open('GET', 'https://dashboard.photonengine.com/', true);
+                    xhr.send();
+                } catch {
+                    resolve(false);
+                }
+            });
+        }
+
+        // 测试WebSocket连接
+        async function testWebSocketConnection() {
+            return new Promise((resolve) => {
+                // 测试本地WebSocket服务器
+                const ws = new WebSocket('ws://localhost:8080');
+                
+                ws.onopen = () => {
+                    log('✓ 本地WebSocket服务器连接成功');
+                    ws.close();
+                    resolve(true);
+                };
+                
+                ws.onerror = () => {
+                    log('❌ 本地WebSocket服务器连接失败');
+                    resolve(false);
+                };
+                
+                setTimeout(() => {
+                    if (ws.readyState !== WebSocket.OPEN) {
+                        log('❌ 本地WebSocket连接超时');
+                        resolve(false);
+                    }
+                }, 3000);
+            });
+        }
+
+        // 页面加载时显示基本信息
+        window.onload = function() {
+            log('页面加载完成');
+            log('点击"测试直接连接"按钮检查网络状态');
+            log('当前问题：Photon SDK CDN链接无法访问');
+        };
+    </script>
+</body>
+</html>

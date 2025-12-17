@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地WebSocket服务器测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; font-weight: bold; }
+        .online { background-color: #d4edda; color: #155724; }
+        .offline { background-color: #f8d7da; color: #721c24; }
+        .connecting { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .connect { background-color: #007bff; color: white; }
+        .disconnect { background-color: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>本地WebSocket服务器测试</h1>
+    <div id="status" class="status offline">离线</div>
+    <div>在线玩家: <span id="playerCount">0</span></div>
+    <button class="connect" onclick="connectToLocalServer()">连接本地服务器</button>
+    <button class="disconnect" onclick="disconnectFromServer()">断开连接</button>
+    <button onclick="sendTestMessage()">发送测试消息</button>
+    <div id="log" style="margin-top: 20px; height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;"></div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+        let playerId = null;
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}<br>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateStatus(status) {
+            const statusElement = document.getElementById('status');
+            statusElement.className = 'status ' + status;
+            statusElement.textContent = status === 'online' ? '在线' : status === 'connecting' ? '连接中' : '离线';
+        }
+
+        function updatePlayerCount(count) {
+            document.getElementById('playerCount').textContent = count;
+        }
+
+        function connectToLocalServer() {
+            if (isConnected) {
+                log('已经连接到服务器');
+                return;
+            }
+
+            updateStatus('connecting');
+            log('正在连接到本地WebSocket服务器...');
+
+            try {
+                ws = new WebSocket('ws://localhost:8080');
+
+                ws.onopen = function() {
+                    isConnected = true;
+                    updateStatus('online');
+                    log('✓ 成功连接到本地WebSocket服务器');
+                    
+                    // 发送连接消息
+                    const connectMsg = {
+                        type: 'player_connect',
+                        playerId: generatePlayerId(),
+                        timestamp: Date.now()
+                    };
+                    ws.send(JSON.stringify(connectMsg));
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleServerMessage(data);
+                    } catch (error) {
+                        log('收到消息: ' + event.data);
+                    }
+                };
+
+                ws.onclose = function() {
+                    isConnected = false;
+                    updateStatus('offline');
+                    log('与服务器断开连接');
+                };
+
+                ws.onerror = function(error) {
+                    log('连接错误: ' + error);
+                    updateStatus('offline');
+                };
+
+            } catch (error) {
+                log('连接失败: ' + error);
+                updateStatus('offline');
+            }
+        }
+
+        function handleServerMessage(data) {
+            switch(data.type) {
+                case 'player_connected':
+                    log(`玩家 ${data.playerId} 加入游戏`);
+                    updatePlayerCount(data.playerCount || 1);
+                    if (!playerId) playerId = data.playerId;
+                    break;
+                case 'player_disconnected':
+                    log(`玩家 ${data.playerId} 离开游戏`);
+                    updatePlayerCount(data.playerCount || 0);
+                    break;
+                case 'player_move':
+                    log(`玩家 ${data.playerId} 移动: (${data.x}, ${data.y})`);
+                    break;
+                case 'player_count':
+                    updatePlayerCount(data.count);
+                    break;
+                case 'server_message':
+                    log(`服务器消息: ${data.message}`);
+                    break;
+                default:
+                    log('收到未知消息: ' + JSON.stringify(data));
+            }
+        }
+
+        function sendTestMessage() {
+            if (!isConnected || !ws) {
+                log('请先连接到服务器');
+                return;
+            }
+
+            const testMsg = {
+                type: 'test_message',
+                playerId: playerId || 'unknown',
+                message: '这是一条测试消息',
+                timestamp: Date.now()
+            };
+
+            ws.send(JSON.stringify(testMsg));
+            log('发送测试消息');
+        }
+
+        function disconnectFromServer() {
+            if (ws) {
+                if (isConnected) {
+                    const disconnectMsg = {
+                        type: 'player_disconnect',
+                        playerId: playerId,
+                        timestamp: Date.now()
+                    };
+                    ws.send(JSON.stringify(disconnectMsg));
+                }
+                ws.close();
+                ws = null;
+                isConnected = false;
+                updateStatus('offline');
+                updatePlayerCount(0);
+                log('已断开连接');
+            }
+        }
+
+        function generatePlayerId() {
+            return 'player_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // 页面加载时显示基本信息
+        window.onload = function() {
+            log('页面加载完成');
+            log('本地WebSocket服务器运行在 ws://localhost:8080');
+            log('点击"连接本地服务器"按钮开始测试');
+            
+            // 自动测试连接
+            setTimeout(() => {
+                log('自动测试本地服务器连接...');
+                connectToLocalServer();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

@@ -50,6 +50,46 @@
 
     <!-- Photon Cloud SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js"></script>
+    <script>
+        // 检查SDK加载状态
+        function checkSDKLoad() {
+            const checkInterval = setInterval(() => {
+                // 检查多个可能的全局变量
+                if (typeof window.loadBalancingClient !== 'undefined' || 
+                    typeof window.Photon !== 'undefined' ||
+                    typeof window.ExitGames !== 'undefined') {
+                    clearInterval(checkInterval);
+                    console.log('Photon SDK loaded successfully');
+                    log('Photon SDK已加载');
+                }
+            }, 100);
+            
+            // 10秒后超时
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                if (typeof window.loadBalancingClient === 'undefined' && 
+                    typeof window.Photon === 'undefined' &&
+                    typeof window.ExitGames === 'undefined') {
+                    console.log('Photon SDK load timeout');
+                    log('Photon SDK加载超时，尝试备用方案');
+                    loadFallbackSDK();
+                }
+            }, 10000);
+        }
+        
+        function loadFallbackSDK() {
+            // 尝试使用官方CDN
+            const script = document.createElement('script');
+            script.src = 'https://cdn.photonengine.com/realtime/5.0.4/realtime.min.js';
+            script.onload = function() {
+                log('备用Photon SDK加载成功');
+            };
+            script.onerror = function() {
+                log('备用Photon SDK加载失败，请检查网络连接');
+            };
+            document.head.appendChild(script);
+        }
+    </script>
     
     <script>
         let client = null;
@@ -161,11 +201,21 @@
 
         // 页面加载时检查SDK
         window.onload = function() {
-            if (typeof loadBalancingClient === 'undefined') {
-                log('警告: Photon SDK未正确加载');
-            } else {
-                log('Photon SDK已加载');
-            }
+            checkSDKLoad(); // 开始检查SDK加载状态
+            
+            // 延迟检查全局变量
+            setTimeout(() => {
+                if (typeof loadBalancingClient !== 'undefined') {
+                    log('Photon SDK已加载 (loadBalancingClient)');
+                } else if (typeof window.Photon !== 'undefined') {
+                    log('Photon SDK已加载 (Photon)');
+                } else if (typeof window.ExitGames !== 'undefined') {
+                    log('Photon SDK已加载 (ExitGames)');
+                } else {
+                    log('警告: 未检测到Photon SDK全局变量');
+                    log('检查浏览器控制台是否有加载错误');
+                }
+            }, 2000);
         };
     </script>
 </body>
