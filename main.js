@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('connect-btn').addEventListener('click', () => {
         // 获取用户输入的服务器地址
         const serverUrl = document.getElementById('server-url').value;
+        console.log('尝试连接到服务器:', serverUrl);
         networkManager.connect(serverUrl);
     });
     

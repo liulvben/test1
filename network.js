@@ -30,29 +30,30 @@ class NetworkManager {
     
     // 动态获取服务器URL，支持局域网连接
     getServerUrl() {
-        // 获取当前页面的主机和端口
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.hostname;
-        const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+        // 获取用户输入的服务器地址，如果没有输入则使用默认值
+        const inputElement = document.getElementById('server-url');
+        if (inputElement && inputElement.value) {
+            return inputElement.value;
+        }
         
-        // 如果端口不是80或443，则包含端口号
-        const portPart = (port === '80' || port === '443') ? '' : `:${port}`;
-        
-        // 不再需要/ws路径，因为服务器已配置为处理所有WebSocket升级请求
-        return `${protocol}//${host}${portPart}`;
+        // 默认使用localhost:8080
+        return 'ws://localhost:8080';
     }
     
     // 连接服务器
     connect(serverUrl = this.serverUrl) {
         if (this.isConnecting || this.isConnected) {
+            console.log('连接已在进行中或已连接，跳过连接请求');
             return;
         }
         
         this.isConnecting = true;
         this.updateConnectionStatus('connecting');
+        console.log('开始连接到服务器:', serverUrl);
         
         try {
             this.socket = new WebSocket(serverUrl);
+            console.log('WebSocket对象创建成功');
             this.setupSocketEvents();
         } catch (error) {
             console.error('创建WebSocket连接失败:', error);
@@ -64,6 +65,7 @@ class NetworkManager {
     // 设置WebSocket事件
     setupSocketEvents() {
         this.socket.onopen = () => {
+            console.log('WebSocket连接已建立');
             this.isConnected = true;
             this.isConnecting = false;
             this.reconnectAttempts = 0;
@@ -78,6 +80,7 @@ class NetworkManager {
         };
         
         this.socket.onmessage = (event) => {
+            console.log('收到服务器消息:', event.data);
             try {
                 const data = JSON.parse(event.data);
                 this.handleMessage(data);
@@ -87,6 +90,7 @@ class NetworkManager {
         };
         
         this.socket.onclose = (event) => {
+            console.log('WebSocket连接关闭，代码:', event.code, '原因:', event.reason);
             this.isConnected = false;
             this.isConnecting = false;
             this.updateConnectionStatus('offline');
