@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOBA对战游戏</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <h1>MOBA对战游戏</h1>
+            <div class="connection-status">
+                <span id="status-indicator" class="status-offline">离线</span>
+                <span id="player-count">在线玩家: 0</span>
+            </div>
+        </header>
+        
+        <main class="game-main">
+            <div class="game-area">
+                <canvas id="game-canvas" width="800" height="600"></canvas>
+            </div>
+            
+            <aside class="game-info">
+                <div class="player-info">
+                    <h3>玩家信息</h3>
+                    <div class="info-item">
+                        <span>玩家ID:</span>
+                        <span id="player-id">未连接</span>
+                    </div>
+                    <div class="info-item">
+                        <span>位置:</span>
+                        <span id="player-position">X: 0, Y: 0</span>
+                    </div>
+                    <div class="info-item">
+                        <span>状态:</span>
+                        <span id="player-status">等待中</span>
+                    </div>
+                    <div class="info-item">
+                        <span>血量:</span>
+                        <div class="status-bar">
+                            <div id="health-bar" class="bar health-bar"></div>
+                            <span id="health-value">1000/1000</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <span>抵抗值:</span>
+                        <div class="status-bar">
+                            <div id="resistance-bar" class="bar resistance-bar"></div>
+                            <span id="resistance-value">50/50</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <span>蓝量:</span>
+                        <div class="status-bar">
+                            <div id="mana-bar" class="bar mana-bar"></div>
+                            <span id="mana-value">1000/1000</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="controls-info">
+                    <h3>控制说明</h3>
+                    <div class="control-item">
+                        <span class="key">W</span>
+                        <span>向上移动</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="key">A</span>
+                        <span>向左移动</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="key">S</span>
+                        <span>向下移动</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="key">D</span>
+                        <span>向右移动</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="key">J</span>
+                        <span>波打法 (消耗100蓝量)</span>
+                    </div>
+                </div>
+                
+                <div class="game-controls">
+                    <div class="server-input">
+                        <label for="server-url">服务器地址:</label>
+                        <input type="text" id="server-url" value="ws://localhost:8080/ws" placeholder="输入服务器地址">
+                    </div>
+                    <div class="button-container">
+                        <button id="connect-btn">连接服务器</button>
+                        <button id="match-btn" disabled>开始匹配</button>
+                        <button id="disconnect-btn" disabled>断开连接</button>
+                    </div>
+                </div>
+            </aside>
+        </main>
+        
+        <footer class="game-footer">
+            <p>使用WASD键控制角色移动</p>
+        </footer>
+    </div>
+    
+    <div id="notification" class="notification hidden"></div>
+    
+    <script src="game.js"></script>
+    <script src="network.js"></script>
+    <!-- <script src="mobile-controls.js"></script> -->
+    <script src="main.js"></script>
+</body>
+</html>
