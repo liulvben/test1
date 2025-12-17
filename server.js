@@ -19,7 +19,7 @@ const server = http.createServer((req, res) => {
     }
     
     // 处理WebSocket升级请求的特殊情况
-    if (req.url === '/ws' && req.headers.upgrade === 'websocket') {
+    if (req.headers.upgrade === 'websocket') {
         // 让WebSocket服务器处理
         return;
     }
@@ -70,7 +70,7 @@ const server = http.createServer((req, res) => {
 // 创建WebSocket服务器，监听所有网络接口
 const wss = new WebSocket.Server({
     server,
-    path: '/ws'
+    // 不设置路径，让服务器处理所有WebSocket升级请求
 });
 
 // 游戏状态

@@ -7,7 +7,8 @@ class NetworkManager {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         this.reconnectDelay = 1000; // 初始重连延迟1秒
-        this.serverUrl = 'ws://localhost:8080/ws'; // 默认服务器地址
+        // 动态获取服务器地址，支持局域网连接
+        this.serverUrl = this.getServerUrl();
         this.game = null;
         this.playerId = null;
         this.callbacks = {
@@ -25,6 +26,20 @@ class NetworkManager {
     // 设置游戏实例
     setGame(game) {
         this.game = game;
+    }
+    
+    // 动态获取服务器URL，支持局域网连接
+    getServerUrl() {
+        // 获取当前页面的主机和端口
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.hostname;
+        const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+        
+        // 如果端口不是80或443，则包含端口号
+        const portPart = (port === '80' || port === '443') ? '' : `:${port}`;
+        
+        // 不再需要/ws路径，因为服务器已配置为处理所有WebSocket升级请求
+        return `${protocol}//${host}${portPart}`;
     }
     
     // 连接服务器
