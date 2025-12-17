@@ -125,14 +125,14 @@
             // 检测当前环境
             const isGitHubPages = window.location.hostname.includes('github.io');
             
-            // 多CDN备用方案 - 更新为可用的链接
-            const cdns = [
+            // 优先使用本地SDK文件，CDN作为备用方案
+            const sdkSources = [
+                './photon-sdk/lib/photon.min.js', // 本地SDK文件
                 'https://unpkg.com/@photonengine/realtime@5.0.4/dist/realtime.min.js',
-                'https://cdn.photonengine.com/realtime/5.0.4/realtime.min.js',
                 'https://cdn.jsdelivr.net/npm/@photonengine/realtime@5.0.4/dist/realtime.min.js'
             ];
             
-            let currentCdn = 0;
+            let currentSource = 0;
             let sdkLoaded = false;
             
             function checkSDKLoad() {
@@ -171,26 +171,26 @@
                     return;
                 }
                 
-                if (!sdkLoaded && currentCdn < cdns.length) {
-                    console.log(`🔄 尝试CDN ${currentCdn + 1}: ${cdns[currentCdn]}`);
+                if (!sdkLoaded && currentSource < sdkSources.length) {
+                    console.log(`🔄 尝试SDK源 ${currentSource + 1}: ${sdkSources[currentSource]}`);
                     
                     const script = document.createElement('script');
-                    script.src = cdns[currentCdn];
+                    script.src = sdkSources[currentSource];
                     
                     script.onload = function() {
-                        console.log(`✅ CDN ${currentCdn + 1} 加载完成`);
+                        console.log(`✅ SDK源 ${currentSource + 1} 加载完成`);
                         setTimeout(checkSDKLoad, 1000);
                     };
                     
                     script.onerror = function() {
-                        console.log(`❌ CDN ${currentCdn + 1} 加载失败`);
-                        currentCdn++;
-                        if (currentCdn < cdns.length) {
+                        console.log(`❌ SDK源 ${currentSource + 1} 加载失败`);
+                        currentSource++;
+                        if (currentSource < sdkSources.length) {
                             setTimeout(function() {
                                 document.head.appendChild(script);
                             }, 500);
                         } else {
-                            console.error('❌ 所有CDN都加载失败，请检查网络连接');
+                            console.error('❌ 所有SDK源都加载失败，请检查网络连接');
                             
                             // GitHub Pages环境：显示友好提示
                             if (isGitHubPages) {
